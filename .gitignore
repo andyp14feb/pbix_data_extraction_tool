@@ -1,3 +1,14 @@
+# Catatan 
+catatan/
+input/
+output/
+pbi-tools.1.2.0/
+pbi-tools.net9.1.2.0_win-x64/
+pbi-tools.1.2.0.zip
+pbi-tools.net9.1.2.0_win-x64.zip
+
+
+
 # Logs
 logs
 *.log
