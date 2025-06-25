@@ -1,5 +1,8 @@
 # PBIX Data Extraction Tool
 
+## Background
+My laziness levels are at an all-time high, so manual data extraction is absolutely off the table. I require a script that uses pbi-tools to handle a task given to me automatically: pulling information of what datasources being used in each .pbix files in a chosen folder, batch processing, and saving as JSON.
+
 ## Overview
 The PBIX Data Extraction Tool is a Python script designed to extract data from Power BI (.pbix) files using the `pbi-tools` command-line utility. It processes PBIX files, exports table data, and generates structured output logs, summaries, and conversions (CSV/JSON) for further analysis.
 
