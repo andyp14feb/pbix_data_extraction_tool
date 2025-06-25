@@ -14,6 +14,8 @@ from k_util import convert_summary_log_to_json
 from k_util import list_tmdl_files_to_json
 from k_util import print_tmdl_contents
 from k_util import extract_partitions_from_database_json
+from k_util import filter_and_classify_partitions
+from k_util import convert_partition_json_to_excel
 
 def process_pbix_files(base_folder):
     """Main function to extract PBIX files"""
@@ -112,8 +114,6 @@ def execute_export_data(pbix_path, output_folder):
     log_summary(pbix_path, output_folder,'export-data')
 
 
-
-
 if __name__ == "__main__":
     # Get base folder from user input
     # ===========================================
@@ -132,3 +132,5 @@ if __name__ == "__main__":
     # list_tmdl_files_to_json()
     # print_tmdl_contents()
     extract_partitions_from_database_json()
+    filter_and_classify_partitions()
+    convert_partition_json_to_excel()

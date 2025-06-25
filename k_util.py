@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import shutil
+import pandas as pd
 
 
 
@@ -204,3 +205,165 @@ def extract_partitions_from_database_json(output_dir="output", summary_file="out
         json.dump(result, out, indent=2)
 
     print(f"✅ Partition summary saved to {summary_file}")
+
+
+
+# def filter_and_classify_partitions(input_file='output/partition_summary.json',
+#                                    output_file='output/partition_summary_filteredA.json'):
+#     with open(input_file, 'r', encoding='utf-8') as f:
+#         data = json.load(f)
+
+#     filtered = []
+
+#     for item in data:
+#         expr = item.get("partition_expression", "")
+#         if isinstance(expr, list):
+#             expr_joined = "\n".join(expr)
+#         else:
+#             expr_joined = expr
+
+#         # Only include if both 'let' and 'Source =' exist
+#         if "let" in expr_joined and "Source =" in expr_joined:
+#             new_item = {
+#                 "pbix": item.get("pbix"),
+#                 "partition_name": item.get("partition_name"),
+#                 "partition_mode": item.get("partition_mode"),
+#                 "partition_type": None,
+#                 "sheet_table_location": None,
+#                 "sheet_table_name": None,
+#                 "partition_expression": item.get("partition_expression")
+#             }
+
+#             # Excel detection
+#             if "Excel.Workbook" in expr_joined:
+#                 new_item["partition_type"] = "excel"
+
+#                 # Get file path
+#                 file_match = re.search(r'File\.Contents\("([^"]+)"\)', expr_joined)
+#                 if file_match:
+#                     new_item["sheet_table_location"] = file_match.group(1)
+
+#                 # Get sheet name
+#                 sheet_match = re.search(r'\[Item\s*=\s*"([^"]+)"', expr_joined)
+#                 if sheet_match:
+#                     new_item["sheet_table_name"] = sheet_match.group(1)
+
+#             # Database detection
+#             elif ".Contents(" in expr_joined:
+#                 new_item["partition_type"] = "database"
+
+#                 # Get DB source
+#                 db_match = re.search(r'Contents\("([^"]+)"', expr_joined)
+#                 if db_match:
+#                     new_item["sheet_table_location"] = db_match.group(1)
+
+#                 # Get table name
+#                 table_match = re.search(r'Name\s*=\s*"([^"]+)"', expr_joined)
+#                 if table_match:
+#                     new_item["sheet_table_name"] = table_match.group(1)
+
+#             else:
+#                 new_item["partition_type"] = "unknown"
+
+#             filtered.append(new_item)
+
+#     # Save as JSON
+#     with open(output_file, 'w', encoding='utf-8') as f:
+#         json.dump(filtered, f, indent=2)
+
+#     print(f"✅ Done. Saved to {output_file}")
+
+
+
+def filter_and_classify_partitions(input_file='output/partition_summary.json',
+                                          summary_log_csv='output/summary_log.csv',
+                                          output_file='output/partition_summary_filteredA.json'):
+    # Load JSON input
+    with open(input_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    # Load CSV mapping summary_log
+    summary_df = pd.read_csv(summary_log_csv)
+    summary_df['output_folder_name'] = summary_df['output'].apply(lambda x: Path(x).parts[-1])
+
+    enriched_data = []
+
+    for item in data:
+        expr = item.get("partition_expression", "")
+        if isinstance(expr, list):
+            expr_joined = "\n".join(expr)
+        else:
+            expr_joined = expr
+
+        if "let" in expr_joined and "Source =" in expr_joined:
+            pbix_folder_name = item.get("pbix")
+            matched_row = summary_df[summary_df['output_folder_name'] == pbix_folder_name]
+
+            if not matched_row.empty:
+                pbix_file_name = matched_row.iloc[0]['name']
+                pbix_file_path = matched_row.iloc[0]['file']
+            else:
+                pbix_file_name = "UNKNOWN"
+                pbix_file_path = "UNKNOWN"
+
+            new_item = {
+                "pbix_file_name": pbix_file_name,
+                "pbix_full_path": pbix_file_path,
+                "pbix": pbix_folder_name,
+                "partition_name": item.get("partition_name"),
+                "partition_mode": item.get("partition_mode"),
+                "partition_type": None,
+                "sheet_table_location": None,
+                "sheet_table_name": None,
+                "partition_expression": item.get("partition_expression")
+            }
+
+            if "Excel.Workbook" in expr_joined:
+                new_item["partition_type"] = "excel"
+                file_match = re.search(r'File\.Contents\("([^"]+)"\)', expr_joined)
+                if file_match:
+                    new_item["sheet_table_location"] = file_match.group(1)
+                sheet_match = re.search(r'\[Item\s*=\s*"([^"]+)"', expr_joined)
+                if sheet_match:
+                    new_item["sheet_table_name"] = sheet_match.group(1)
+            elif ".Contents(" in expr_joined:
+                new_item["partition_type"] = "database"
+                db_match = re.search(r'Contents\("([^"]+)"', expr_joined)
+                if db_match:
+                    new_item["sheet_table_location"] = db_match.group(1)
+                table_match = re.search(r'Name\s*=\s*"([^"]+)"', expr_joined)
+                if table_match:
+                    new_item["sheet_table_name"] = table_match.group(1)
+            else:
+                new_item["partition_type"] = "unknown"
+
+            enriched_data.append(new_item)
+
+    # Save the result
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(enriched_data, f, indent=2)
+
+    output_file
+
+
+
+def convert_partition_json_to_excel(json_file='output/partition_summary_filteredA.json',
+                                    excel_file='output/partition_summary_filteredA.xlsx'):
+    with open(json_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    # Normalize and flatten JSON
+    flat_data = []
+    for item in data:
+        row = item.copy()
+        # Convert list to multiline string for better readability in Excel
+        if isinstance(row.get("partition_expression"), list):
+            row["partition_expression"] = "\n".join(row["partition_expression"])
+        flat_data.append(row)
+
+    # Convert to DataFrame
+    df = pd.DataFrame(flat_data)
+
+    # Save to Excel
+    df.to_excel(excel_file, index=False)
+    print(f"✅ JSON converted to Excel: {excel_file}")
