@@ -8,6 +8,8 @@ pbi-tools.net9.1.2.0_win-x64/
 pbi-tools.1.2.0.zip
 pbi-tools.net9.1.2.0_win-x64.zip
 
+.continue/
+
 # Python
 __pycache__/
 *.pyc
