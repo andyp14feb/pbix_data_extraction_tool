@@ -1,9 +1,19 @@
 import os
-import hashlib
 import subprocess
 from pathlib import Path
-from datetime import datetime
-import shutil
+import json
+import json
+from k_util import create_unique_output_folder
+from k_util import get_current_datetime_str
+from k_util import log_progress
+from k_util import log_error
+from k_util import log_summary
+from k_util import clear_output_folder
+from k_util import convert_summary_log_to_csv
+from k_util import convert_summary_log_to_json
+from k_util import list_tmdl_files_to_json
+from k_util import print_tmdl_contents
+from k_util import extract_partitions_from_database_json
 
 def process_pbix_files(base_folder):
     """Main function to extract PBIX files"""
@@ -36,15 +46,6 @@ def process_pbix_files(base_folder):
                 #     log_error(f"Error export_data {file}: {str(e)}")
 
 
-
-def create_unique_output_folder(filename, source_path):
-    """Create unique output folder with collision handling"""
-    base_name = Path(filename).stem
-    hash_suffix = hashlib.md5(source_path.encode()).hexdigest()[:8]
-    output_folder = Path("output") / f"{base_name}_{hash_suffix}"
-    output_folder.mkdir(exist_ok=True)
-    return str(output_folder)
-
 def execute_extraction(pbix_path, output_folder):
     """Execute pbi-tools.exe extraction command"""
     pbi_exe = Path(__file__).resolve().parent / "pbi-tools" / "pbi-tools.exe"
@@ -53,8 +54,8 @@ def execute_extraction(pbix_path, output_folder):
         "extract",
         str(pbix_path),
         "-extractFolder", output_folder,
-        "-modelSerialization", "Tmdl"     
-        # "-modelSerialization", "Raw"
+        # "-modelSerialization", "Tmdl"     
+        "-modelSerialization", "Raw"
     ]
 
     if not pbi_exe.exists():
@@ -110,45 +111,24 @@ def execute_export_data(pbix_path, output_folder):
 
     log_summary(pbix_path, output_folder,'export-data')
 
-def get_current_datetime_str():
-    """Returns current date and time as a string in format yyyymmdd_hhmm"""
-    return datetime.now().strftime("%Y%m%d_%H%M")
 
 
-def log_progress(message):
-    """Log extraction information to extraction log file"""
-    with open("output/extraction_log.txt", "a") as f:
-        f.write(f"{get_current_datetime_str()} : {message}\n")
-        print(f"{get_current_datetime_str()} : {message}\n")
-        
-def log_error(message):
-    """Log errors to error log file"""
-    with open("output/error_log.txt", "a") as f:
-        message=f"ERROR : {message}"
-        f.write(f"{get_current_datetime_str()} : {message}\n")
-        log_progress(message)
-        # print(f"{get_current_datetime_str()} : {message}\n")
-
-def log_summary(pbix_path, output_folder, what):
-    """Log mapping of PBIX file to output folder"""
-    with open("output/summary_log.txt", "a") as f:
-        log_line = f'{get_current_datetime_str()} : what="{what}", file="{pbix_path}", name="{Path(pbix_path).name}", output="{output_folder}"\n'
-        f.write(log_line)
-
-
-def clear_output_folder():
-    """Clears all files and subdirectories inside the ./output folder."""
-    output_dir = Path("output")
-    if output_dir.exists() and output_dir.is_dir():
-        for item in output_dir.iterdir():
-            if item.is_file():
-                item.unlink()  # Remove file
-            elif item.is_dir():
-                shutil.rmtree(item)  # Remove directory and its contents
 
 if __name__ == "__main__":
     # Get base folder from user input
+    # ===========================================
+    # MVP1
+    # ===========================================
     clear_output_folder()
     base_folder = input("Enter the base folder to scan for PBIX files: ")
     log_progress(f'Scanning for PBIX files in {base_folder}')
     process_pbix_files(base_folder)
+    
+    #===========================================
+    # MVP1 step 02 listing all the
+    #===========================================
+    convert_summary_log_to_csv()
+    convert_summary_log_to_json()
+    # list_tmdl_files_to_json()
+    # print_tmdl_contents()
+    extract_partitions_from_database_json()
